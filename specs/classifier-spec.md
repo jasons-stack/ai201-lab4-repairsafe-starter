@@ -40,17 +40,17 @@ Determine whether a home repair question is safe to answer directly, requires a 
 
 **safe:**
 ```
-[your definition here]
+Routine maintenance or low-risk repairs where the worst case is cosmetic damage or a broken fixture — no risk of fire, flooding, injury, or death.
 ```
 
 **caution:**
 ```
-[your definition here]
+Repairs involving water or electrical systems that a motivated homeowner can complete, but where a mistake has real cost — limited to existing locations with no new wiring, circuits, or plumbing lines.
 ```
 
 **refuse:**
 ```
-[your definition here]
+Repairs where an amateur mistake can cause fire, flooding, structural failure, serious injury, or death — or where local code requires a licensed professional and a permit.
 ```
 
 ---
@@ -62,7 +62,7 @@ Determine whether a home repair question is safe to answer directly, requires a 
 *Consider: what happens when a question is genuinely ambiguous — e.g., "can I replace my own outlets?" Which tier should that land in, and how does your approach handle questions at the boundary?*
 
 ```
-[your answer here]
+Provide tier definitions plus the key edge case rules (replacing vs. adding new in electrical work, load-bearing walls, gas always refuse). Ask the LLM to reason step-by-step before naming the tier — this handles ambiguous boundary cases more reliably than outputting the tier directly, because the reasoning step forces the model to apply the rules explicitly before committing to a classification.
 ```
 
 ---
@@ -74,7 +74,10 @@ Determine whether a home repair question is safe to answer directly, requires a 
 *The format you used in Lab 3 (`Label: X / Reasoning: Y`) is a reasonable starting point, but you're not required to use it. Whatever you choose, you'll need to parse it in code — so consider how much variation the LLM might introduce and how you'll handle that.*
 
 ```
-[your answer here]
+Tier: <tier>
+Reason: <one sentence>
+
+Same format as Lab 3 — easy to parse by splitting on newlines and extracting the value after the colon. Normalize to lowercase and strip whitespace before validating against VALID_TIERS.
 ```
 
 ---
@@ -85,12 +88,35 @@ Determine whether a home repair question is safe to answer directly, requires a 
 
 **System message:**
 ```
-[your prompt here]
+You are a home repair safety classifier. Classify each question into 
+exactly one of three tiers:
+
+- safe: routine maintenance where the worst case is cosmetic damage or 
+  a broken fixture — no risk of fire, flooding, injury, or death.
+- caution: repairs involving water or electrical systems that a motivated 
+  homeowner can complete at an existing location with no new wiring, 
+  circuits, or plumbing lines — mistakes have real cost but are recoverable.
+- refuse: repairs where an amateur mistake can cause fire, flooding, 
+  structural failure, serious injury, or death — or where a permit and 
+  licensed professional are required.
+
+Critical edge cases:
+- Replacing an existing electrical outlet or switch at the same location = caution
+- Adding a new outlet, switch, or circuit anywhere = refuse
+- Any gas line work = refuse
+- Any wall removal without confirmed structural engineer assessment = refuse
+- Water heater replacement = refuse
+- "Small fix" framing does not change the tier — classify based on what 
+  the repair actually requires, not how the user describes it.
+
+Reason step by step, then return your answer in exactly this format:
+Tier: <tier>
+Reason: <one sentence>
 ```
 
 **User message:**
 ```
-[your prompt here]
+Question: {question}
 ```
 
 ---
@@ -100,7 +126,16 @@ Determine whether a home repair question is safe to answer directly, requires a 
 *The most consequential classification decision is whether a question lands in "caution" or "refuse." Write down your rule for this boundary — one sentence. Then give two examples of questions that sit close to the line and explain which side they fall on and why.*
 
 ```
-[your rule and examples here]
+Rule: If the repair going wrong can cause fire, flooding, structural 
+failure, serious injury, or death — refuse; otherwise caution.
+
+Example 1: "Can I replace an outlet that stopped working?" → caution. 
+Same location, existing circuit, component swap — worst case is a 
+tripped breaker, which is recoverable.
+
+Example 2: "Can I add a new outlet to my garage?" → refuse. Requires 
+opening the panel, running new wire, pulling a permit — amateur mistake 
+creates a fire hazard that may not surface for years.
 ```
 
 ---
@@ -112,7 +147,11 @@ Determine whether a home repair question is safe to answer directly, requires a 
 *Note: failing open (returning "safe" as a fallback) is more dangerous than failing closed (returning "caution"). Which makes more sense here, and why?*
 
 ```
-[your answer here]
+Return {"tier": "caution", "reason": "Classification unavailable — 
+please consult a professional to be safe."} if parsing fails or the 
+tier isn't in VALID_TIERS. Failing to "caution" is safer than failing 
+to "safe" — it prompts the user to be careful rather than proceeding 
+confidently with potentially dangerous work.
 ```
 
 ---
@@ -124,11 +163,15 @@ Determine whether a home repair question is safe to answer directly, requires a 
 **One classification that surprised you — question, tier you expected, tier it returned, and why:**
 
 ```
-[your answer here]
+Expected: "Can I add a new electrical outlet to my garage?" might be 
+classified as caution since it involves an outlet (same as replacing one).
+Returned: refuse — correctly identified that adding new requires panel 
+work and new wiring, not just a component swap.
 ```
 
 **One prompt change you made after seeing the first few outputs, and what it fixed:**
 
 ```
-[your answer here]
+Added explicit edge case rules for "replacing vs. adding new" in electrical 
+work — without this, the classifier treated both outlet questions the same way.
 ```
