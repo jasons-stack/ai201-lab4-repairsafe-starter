@@ -43,8 +43,8 @@ Record every interaction — question, safety tier, and response preview — to 
 | `"tier"` | `str` | Safety tier assigned to this question |
 | `"question"` | `str` | The user's question, truncated to 300 characters |
 | `"response_preview"` | `str` | First 200 characters of the generated response |
-| `[your field]` | `[type]` | [description] |
-| `[your field]` | `[type]` | [description] |
+| `question_length` | `int` | Character count of the full question — helps identify if longer questions correlate with misclassifications |
+| `model` | `str` | The LLM model used — useful if the model changes over time and you need to compare behavior across versions |
 
 ---
 
@@ -53,7 +53,16 @@ Record every interaction — question, safety tier, and response preview — to 
 *The required fields truncate the question to 300 characters and the response to 200. Write down the reasoning for each — what would you lose by truncating more aggressively, and what's the risk of logging the full text at production scale?*
 
 ```
-[your answer here]
+Question truncated to 300 characters: most home repair questions fit 
+within this limit. Truncating to 50-100 would lose the specific details 
+that distinguish edge cases (e.g. "replacing" vs "adding new"). Logging 
+full text at production scale risks storing PII or sensitive details, 
+bloats storage costs, and may create compliance issues.
+
+Response truncated to 200 characters: enough to verify the response 
+started correctly (refused, warned, or answered) without storing the 
+full LLM output. Full responses at 10,000/day would create massive log 
+files and make pattern analysis slower.
 ```
 
 ---
@@ -63,7 +72,10 @@ Record every interaction — question, safety tier, and response preview — to 
 *What happens if `logs/` doesn't exist when the function runs for the first time? How will you handle that — and why is this worth thinking about at all?*
 
 ```
-[your answer here]
+Use os.makedirs(log_dir, exist_ok=True) before opening the log file. 
+Without this, the first write will raise FileNotFoundError if logs/ 
+doesn't exist — even though logs/.gitkeep keeps the directory in git, 
+it may be missing in a fresh clone or a CI environment.
 ```
 
 ---
@@ -73,7 +85,7 @@ Record every interaction — question, safety tier, and response preview — to 
 *Write an example of what you want the one-line terminal summary to look like after a question is logged. Be specific about format.*
 
 ```
-[your example output here]
+[LOG] 2025-11-01T14:22:01Z | tier=refuse | "How do I fix a gas line that smells like it's leaking?"
 ```
 
 ---
@@ -85,11 +97,16 @@ Record every interaction — question, safety tier, and response preview — to 
 **The actual log file content after 3 test queries (paste the three JSON lines):**
 
 ```
-[your answer here]
+{"timestamp": "2026-06-24T00:10:34.481946Z", "tier": "safe", "question": "How do I patch a small hole in drywall?", "response_preview": "Patching a small hole in drywall is a relatively simple and straightforward process that most homeowners can handle on their own. Here's a step-by-step guide to help you get the job done:\n\n**Tools and", "question_length": 39, "model": "llama-3.3-70b-versatile"}
+{"timestamp": "2026-06-24T00:10:47.111496Z", "tier": "caution", "question": "How do I replace a bathroom faucet?", "response_preview": "This repair involves systems where mistakes can be costly \u2014 if you are not comfortable with the steps below, hiring a licensed professional is the safer choice. Mistakes can lead to water damage, leak", "question_length": 35, "model": "llama-3.3-70b-versatile"}
+{"timestamp": "2026-06-24T00:11:00.987284Z", "tier": "refuse", "question": "How do I fix a gas line that smells like it's leaking?", "response_preview": "This repair requires a licensed professional. Attempting to fix a gas line leak on your own can be extremely hazardous, as it poses significant risks of fire, explosion, and injury, or even death. Gas", "question_length": 54, "model": "llama-3.3-70b-versatile"}
 ```
 
 **One field you'd add to the log if this were a real production system handling 10,000 questions per day:**
 
 ```
-[your answer here]
+"session_id" — a unique identifier per user session. With 10,000 questions 
+per day, you'd need to group interactions by session to detect patterns 
+like a single user repeatedly probing the refuse boundary, or to 
+reconstruct the full context around a reported harmful response.
 ```

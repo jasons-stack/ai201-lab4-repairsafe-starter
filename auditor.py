@@ -31,4 +31,24 @@ def log_interaction(question: str, tier: str, response: str) -> None:
 
     Design your log entry in specs/auditor-spec.md before implementing here.
     """
-    pass
+    from datetime import timezone
+
+    log_dir = os.path.dirname(LOG_FILE)
+    if log_dir:
+        os.makedirs(log_dir, exist_ok=True)
+
+    timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    record = {
+        "timestamp": timestamp,
+        "tier": tier,
+        "question": question[:300],
+        "response_preview": response[:200],
+        "question_length": len(question),
+        "model": "llama-3.3-70b-versatile",
+    }
+
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(json.dumps(record) + "\n")
+
+    print(f"[LOG] {timestamp} | tier={tier} | \"{question[:60]}\"")
